@@ -1,3 +1,4 @@
+
 clc
 clear all
 close all
@@ -11,8 +12,8 @@ Omega_b = -0.045;
 qw = 10;
 W = qw*[2 0.05;0.05 0.5];
 
-GamA = [0 0;1 0;0 0;0 1];
-GamB = [0 0;1 0;0 0;0 1];
+GamA = [0, 0; 1, 0; 0, 0; 0, 1];
+GamB = [0, 0; 1, 0; 0, 0; 0, 1];
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% PART A 
@@ -52,8 +53,8 @@ Qb = (Fb')' * FinvQB
 % set random number seed for consistency between runs
 rng(100)
 
-Ha=[1 0 0 0; 0 0 1 0];
-Ra=[20 0.05; 0.05 20];
+Ha=[1, 0, 0, 0; 0, 0, 1, 0];
+Ra=[20, 0.05; 0.05, 20];
 
 load('hw8problem1_data')
 xa = xasingle_truth;
@@ -80,21 +81,9 @@ grid on
 mu_a = [0 85 * cos(pi / 4), 0, -85 * sin(pi / 4)]';
 P0_a = 900 * diag([10, 2, 10, 2]);
 
-xp = mu_a;
-P = P0_a;
-K = zeros(4,2);
+[xpa, Pa, Ka] = Kalman_Filter(mu_a, P0_a, Fa, Qa, y_k, Ha, Ra);
 
-% Kalman Filter 
-for i = 1:(length(xasingle_truth) - 1)
-    % Prediction Step 
-    xm = Fa * xp(:, i);
-    Pm = Fa * P(:,:,i) * Fa' + Qa;
-    K(:, :, i+1) = Pm * Ha' * inv(Ha * Pm * Ha' + Ra);
-    
-    % Correction Step 
-    xp(:, i+1) = xm + K(:, :, i+1) * (y_k(:, i+1) - Ha * xm);
-    P(:, :, i+1) = (eye(4) - K(:, :, i+1) * Ha) * Pm;
-end
+%%
 
 est_state_error = xasingle_truth - xp;
 
