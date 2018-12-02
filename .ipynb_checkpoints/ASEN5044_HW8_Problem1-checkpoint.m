@@ -83,18 +83,20 @@ grid on
 mu_a = [0 85 * cos(pi / 4), 0, -85 * sin(pi / 4)]';
 P0_a = 900 * diag([10, 2, 10, 2]);
 
-xm=mu_a;
-Pm=P0_a;
+xm = mu_a;
+Pm = P0_a;
+K = zeros(4,2);
 
 % Kalman Filter 
 for i = 1:length(xasingle_truth)
     % Prediction Step 
-    xm(:, i+1) = Fa * xm(:,i)
-    Pm(i+1) = Fa * Pm(i) * Fa' + Qa;
-    K(i+1) = Pm(i+1) * Ha' * inv(Ha * Pm(i+1) * Ha' + Ra);
-  
-    xp(i+1) = xm(i+1) + K(i+1) * (y_k(:, i+1) - Ha * xm(i+1));
-    Pp(i+1) = (eye(2) - K(i+1) * Ha) * Pm(i+1);
+    xm(:, i+1) = Fa * xm(:, 1)
+    Pm(:, :, i+1) = Fa * Pm(:,:,i) * Fa' + Qa
+    K(:, :, i+1) = Pm(:, :, i+1) * Ha' * inv(Ha * Pm(:,:,i+1) * Ha' + Ra)
+    
+    % Correction Step 
+    xm(:, i+1) = xm(:, i+1) + K(:, :, i+1) * (y_k(:, i+1) - Ha * xm(:, i+1));
+    Pm(:, :, i+1) = (eye(4) - K(:, :, i+1) * Ha) * Pm(i+1);
 end
 
 
