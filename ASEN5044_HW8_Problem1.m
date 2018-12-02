@@ -3,16 +3,16 @@ clear all
 close all
 
 %% Constants Definition
-delta_t=0.5;
-time=linspace(0,300,300);
-Omega_a=0.045;
-Omega_b=-0.045;
+delta_t = 0.5;
+time = linspace(0,300,300);
+Omega_a = 0.045;
+Omega_b = -0.045;
 
-qw=10;
-W=qw*[2 0.05;0.05 0.5];
+qw = 10;
+W = qw*[2 0.05;0.05 0.5];
 
-GamA=[0 0;1 0;0 0;0 1];
-GamB=[0 0;1 0;0 0;0 1];
+GamA = [0 0;1 0;0 0;0 1];
+GamB = [0 0;1 0;0 0;0 1];
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% PART A 
@@ -83,21 +83,73 @@ grid on
 mu_a = [0 85 * cos(pi / 4), 0, -85 * sin(pi / 4)]';
 P0_a = 900 * diag([10, 2, 10, 2]);
 
-xm = mu_a;
-Pm = P0_a;
+xp = mu_a;
+P = P0_a;
 K = zeros(4,2);
 
 % Kalman Filter 
 for i = 1:(length(xasingle_truth) - 1)
     % Prediction Step 
-    xm(:, i+1) = Fa * xm(:, 1);
-    Pm(:, :, i+1) = Fa * Pm(:,:,i) * Fa' + Qa;
-    K(:, :, i+1) = Pm(:, :, i+1) * Ha' * inv(Ha * Pm(:,:,i+1) * Ha' + Ra);
+    xm = Fa * xp(:, i);
+    Pm = Fa * P(:,:,i) * Fa' + Qa;
+    K(:, :, i+1) = Pm * Ha' * inv(Ha * Pm * Ha' + Ra);
     
     % Correction Step 
-    xm(:, i+1) = xm(:, i+1) + K(:, :, i+1) * (y_k(:, i+1) - Ha * xm(:, i+1));
-    Pm(:, :, i+1) = (eye(4) - K(:, :, i+1) * Ha) * Pm(i+1);
+    xp(:, i+1) = xm + K(:, :, i+1) * (y_k(:, i+1) - Ha * xm);
+    P(:, :, i+1) = (eye(4) - K(:, :, i+1) * Ha) * Pm;
 end
+
+est_state_error = xasingle_truth - xp;
+
+sigma1 = reshape(sqrt(P(1,1,:)),1,201);
+sigma2 = reshape(sqrt(P(2,2,:)),1,201);
+sigma3 = reshape(sqrt(P(3,3,:)),1,201);
+sigma4 = reshape(sqrt(P(4,4,:)),1,201);
+
+
+upper1 = mu_a(1,:) + 2*sigma1;
+lower1 = mu_a(1,:) - 2*sigma1;
+
+upper2 = mu_a(2,:) + 2*sigma2;
+lower2 = mu_a(2,:) - 2*sigma2;
+
+upper3 = mu_a(3,:) + 2*sigma3;
+lower3 = mu_a(3,:) - 2*sigma3;
+
+upper4 = mu_a(4,:) + 2*sigma4;
+lower4 = mu_a(4,:) - 2*sigma4;
+
+
+
+
+figure()
+plot(time,est_state_error(1,1:20),time,upper1(1:20),'--r',time,lower1(1:20),'--r')
+xlabel('Time(s)')
+ylabel('Estimation state error - State 1')
+grid on
+title('Easting Pos')
+
+figure()
+plot(time,est_state_error(2,1:20),time,upper2(1:20),'--r',time,lower2(1:20),'--r')
+xlabel('Time(s)')
+ylabel('Estimation state error - State 2')
+grid on
+title('Easting Vel')
+
+figure()
+plot(time,est_state_error(3,1:20),time,upper3(1:20),'--r',time,lower3(1:20),'--r')
+xlabel('Time(s)')
+ylabel('Estimation state error - State 3')
+grid on
+title('Northing Pos')
+
+figure()
+plot(time,est_state_error(4,1:20),time,upper4(1:20),'--r',time,lower4(1:20),'--r')
+xlabel('Time(s)')
+ylabel('Estimation state error - State 4')
+grid on
+title('Northing Vel')
+
 
 %%%%%%%%%%%%%%%%%%%
 %% PART C -- Setup 
