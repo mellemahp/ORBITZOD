@@ -58,9 +58,6 @@ Ra=[20 0.05; 0.05 20];
 load('hw8problem1_data')
 xa = xasingle_truth;
 
-R_block = [];
-H_block = [];
-
 % generate noisy measurements 
 for i = 1:length(xasingle_truth)
     noise = mvnrnd([0 0], Ra);
@@ -110,14 +107,14 @@ sigma4 = reshape(sqrt(P(4,4,:)),1,201);
 upper1 = mu_a(1,:) + 2*sigma1;
 lower1 = mu_a(1,:) - 2*sigma1;
 
-upper2 = mu_a(2,:) + 2*sigma2;
-lower2 = mu_a(2,:) - 2*sigma2;
+upper2 = + 2*sigma2;
+lower2 = - 2*sigma2;
 
 upper3 = mu_a(3,:) + 2*sigma3;
 lower3 = mu_a(3,:) - 2*sigma3;
 
-upper4 = mu_a(4,:) + 2*sigma4;
-lower4 = mu_a(4,:) - 2*sigma4;
+upper4 = + 2*sigma4;
+lower4 = - 2*sigma4;
 
 
 
@@ -145,6 +142,7 @@ title('Northing Pos')
 
 figure()
 plot(time,est_state_error(4,1:20),time,upper4(1:20),'--r',time,lower4(1:20),'--r')
+
 xlabel('Time(s)')
 ylabel('Estimation state error - State 4')
 grid on
@@ -165,11 +163,34 @@ R_d = [10 , 0.15; 0.15, 10];
 %% PART C -- i
 %%%%%%%%%%%%%%%%
 
+for i = 1:length(xadouble_truth)
+    noise = mvnrnd([0 0], R_d); 
+    y_ap(:,i)=Ha*xadouble_truth(:,i)+noise';
+    y_d(:,i) = Ha*xadouble_truth(:, i) - Ha*xbdouble_truth(:,i) + noise';
+end
+
+y_sk = [y_ap;y_d];
+x_sk = [xadouble_truth;xbdouble_truth];
 
 
+F_block = blkdiag(Fa,Fb);
+Q_block = blkdiag(Qa,Qb);
+R_block = blkdiag(Ra,Rd);
+H_block = [Ha zeros(size(Ha));Ha -Ha];
 
-
+for i = 1:(length(xadouble_truth) - 1)
+    % Prediction Step 
+    xm = Fa * xp(:, i);
+    Pm = Fa * P(:,:,i) * Fa' + Qa;
+    K(:, :, i+1) = Pm * Ha' * inv(Ha * Pm * Ha' + Ra);
+    
+    % Correction Step 
+    xp(:, i+1) = xm + K(:, :, i+1) * (y_k(:, i+1) - Ha * xm);
+    P(:, :, i+1) = (eye(4) - K(:, :, i+1) * Ha) * Pm;
+    
+end 
 %%%%%%%%%%%%%%%%
+
 %% PART C -- ii 
 %%%%%%%%%%%%%%%%
 
