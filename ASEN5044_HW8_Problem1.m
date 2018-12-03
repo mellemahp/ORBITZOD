@@ -85,12 +85,12 @@ P0_a = 900 * diag([10, 2, 10, 2]);
 
 %%
 
-est_state_error = xasingle_truth - xp;
+est_state_error = xasingle_truth - xpa;
 
-sigma1 = reshape(sqrt(P(1,1,:)),1,201);
-sigma2 = reshape(sqrt(P(2,2,:)),1,201);
-sigma3 = reshape(sqrt(P(3,3,:)),1,201);
-sigma4 = reshape(sqrt(P(4,4,:)),1,201);
+sigma1 = reshape(sqrt(Pa(1,1,:)),1,201);
+sigma2 = reshape(sqrt(Pa(2,2,:)),1,201);
+sigma3 = reshape(sqrt(Pa(3,3,:)),1,201);
+sigma4 = reshape(sqrt(Pa(4,4,:)),1,201);
 
 
 upper1 = mu_a(1,:) + 2*sigma1;
@@ -104,8 +104,6 @@ lower3 = mu_a(3,:) - 2*sigma3;
 
 upper4 = + 2*sigma4;
 lower4 = - 2*sigma4;
-
-
 
 
 figure()
@@ -153,9 +151,10 @@ R_d = [10 , 0.15; 0.15, 10];
 %%%%%%%%%%%%%%%%
 
 for i = 1:length(xadouble_truth)
-    noise = mvnrnd([0 0], R_d); 
+    noise = mvnrnd([0 0],Ra);
+    noise2 = mvnrnd([0 0], R_d); 
     y_ap(:,i)=Ha*xadouble_truth(:,i)+noise';
-    y_d(:,i) = Ha*xadouble_truth(:, i) - Ha*xbdouble_truth(:,i) + noise';
+    y_d(:,i) = Ha*xadouble_truth(:, i) - Ha*xbdouble_truth(:,i) + noise2';
 end
 
 y_sk = [y_ap;y_d];
@@ -164,24 +163,129 @@ x_sk = [xadouble_truth;xbdouble_truth];
 
 F_block = blkdiag(Fa,Fb);
 Q_block = blkdiag(Qa,Qb);
-R_block = blkdiag(Ra,Rd);
+R_block = blkdiag(Ra,R_d);
 H_block = [Ha zeros(size(Ha));Ha -Ha];
+P_block = blkdiag(P_a_0,P_b_0);
+mu_block = [mu_a_0, mu_b_0]';
 
-for i = 1:(length(xadouble_truth) - 1)
-    % Prediction Step 
-    xm = Fa * xp(:, i);
-    Pm = Fa * P(:,:,i) * Fa' + Qa;
-    K(:, :, i+1) = Pm * Ha' * inv(Ha * Pm * Ha' + Ra);
-    
-    % Correction Step 
-    xp(:, i+1) = xm + K(:, :, i+1) * (y_k(:, i+1) - Ha * xm);
-    P(:, :, i+1) = (eye(4) - K(:, :, i+1) * Ha) * Pm;
-    
-end 
+[xpd, Pd, Kd] = Kalman_Filter(mu_block, P_block, F_block, Q_block, y_sk, H_block, R_block);
+
+est_state_error_d = x_sk - xpd;
+
+Pad = Pd(1:4,1:4,:);
+Pbd = Pd(5:8,5:8,:);
+
+
+sigma1_a = reshape(sqrt(Pad(1,1,:)),1,201);
+sigma3_a = reshape(sqrt(Pad(3,3,:)),1,201);
+sigma1_b = reshape(sqrt(Pbd(1,1,:)),1,201);
+sigma3_b = reshape(sqrt(Pbd(3,3,:)),1,201);
+
+
+upper1 =+ 2*sigma1_a;
+lower1 =  - 2*sigma1_a;
+
+upper2 =  + 2*sigma3_a;
+lower2 =  - 2*sigma3_a;
+
+upper3 =  + 2*sigma1_b;
+lower3 =  - 2*sigma1_b;
+
+upper4 =  + 2*sigma3_b;
+lower4 = - 2*sigma3_b;
+
+
+figure()
+plot(time,est_state_error_d(1,1:20),time,upper1(1:20),'--r',time,lower1(1:20),'--r')
+xlabel('Time(s)')
+ylabel('Estimation state error - Aircraft A - Easting')
+grid on
+title('Easting Pos')
+
+figure()
+plot(time,est_state_error_d(3,1:20),time,upper2(1:20),'--r',time,lower2(1:20),'--r')
+xlabel('Time(s)')
+ylabel('Estimation state error - Aircraft A - Northing')
+grid on
+title('Northing Pos')
+
+figure()
+plot(time,est_state_error_d(5,1:20),time,upper3(1:20),'--r',time,lower3(1:20),'--r')
+xlabel('Time(s)')
+ylabel('Estimation state error - Aircraft B - Easting')
+grid on
+title('Easting Pos')
+
+figure()
+plot(time,est_state_error_d(7,1:20),time,upper4(1:20),'--r',time,lower4(1:20),'--r')
+
+xlabel('Time(s)')
+ylabel('Estimation state error - Aircraft B - Northing')
+grid on
+title('Northing Pos')
+
 %%%%%%%%%%%%%%%%
-
 %% PART C -- ii 
 %%%%%%%%%%%%%%%%
+
+y_sk = y_d;
+H_block = H_block(3:4,:);
+
+[xpd, Pd, Kd] = Kalman_Filter(mu_block, P_block, F_block, Q_block, y_sk, H_block, R_d);
+
+Pad = Pd(1:4,1:4,:);
+Pbd = Pd(5:8,5:8,:);
+
+
+sigma1_a = reshape(sqrt(Pad(1,1,:)),1,201);
+sigma3_a = reshape(sqrt(Pad(3,3,:)),1,201);
+sigma1_b = reshape(sqrt(Pbd(1,1,:)),1,201);
+sigma3_b = reshape(sqrt(Pbd(3,3,:)),1,201);
+
+
+upper1 =  + 2*sigma1_a;
+lower1 =  - 2*sigma1_a;
+
+upper2 =  + 2*sigma3_a;
+lower2 =  - 2*sigma3_a;
+
+upper3 =  + 2*sigma1_b;
+lower3 =  - 2*sigma1_b;
+
+upper4 =  + 2*sigma3_b;
+lower4 =  - 2*sigma3_b;
+
+
+figure()
+plot(time,est_state_error_d(1,1:20),time,upper1(1:20),'--r',time,lower1(1:20),'--r')
+xlabel('Time(s)')
+ylabel('Estimation state error - Aircraft A - Easting')
+grid on
+title('Easting Pos')
+
+figure()
+plot(time,est_state_error_d(3,1:20),time,upper2(1:20),'--r',time,lower2(1:20),'--r')
+xlabel('Time(s)')
+ylabel('Estimation state error - Aircraft A - Northing')
+grid on
+title('Northing Pos')
+
+figure()
+plot(time,est_state_error_d(5,1:20),time,upper3(1:20),'--r',time,lower3(1:20),'--r')
+xlabel('Time(s)')
+ylabel('Estimation state error - Aircraft B - Easting')
+grid on
+title('Easting Pos')
+
+figure()
+plot(time,est_state_error_d(7,1:20),time,upper4(1:20),'--r',time,lower4(1:20),'--r')
+
+xlabel('Time(s)')
+ylabel('Estimation state error - Aircraft B - Northing')
+grid on
+title('Northing Pos')
+
+
 
 %%%%%%%%%%%%%%%%%
 %% PART C -- iii
