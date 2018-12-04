@@ -40,19 +40,21 @@ for i = 1:(length(time))
 end
 
 %% Plot Measurements
-
 x = 1;
 for i = 1:12
-    subplot(12, 3, x)
+    figure()
+    subplot(3, 1, 1)
     plot(time, msrs(x,:))
-    title(strcat('Stn', num2str(i), 'Range'))
-    subplot(12, 3, x + 1) 
+    title(strcat('Station', num2str(i)))
+    ylabel('Range (km)')
+    subplot(3, 1, 2) 
     plot(time, msrs(x + 1,:))
-    title(strcat('Stn', num2str(i), 'Range Rate'))
-    subplot(12, 3, x + 2)
-    plot(time, msrs(x + 1,:))
-    title(strcat('Stn', num2str(i), 'Phi'))
-    x = x + 3; 
+    ylabel('Range Rate (km/s)')
+    subplot(3, 1, 3)
+    plot(time, msrs(x + 2,:))
+    ylabel('Phi (rad)')
+    xlabel('Time (sec)')
+    x = x + 3;
 end 
 
 
