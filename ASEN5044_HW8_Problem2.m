@@ -17,15 +17,17 @@ C.station_angles_0 = arrayfun(@(i) (i - 1) * pi / 6, 1:12);
 %% Generate Truth States
 
 % create the time vector for two periods of the orbit
-times = 1:C.delta_t:14000; %C.period * 2;
+times = 0:C.delta_t:14000; %C.period * 2;
 
 % initialize the initial conditions of the orbit and perturbation vector
 state = [C.r0; 0; 0; C.r0 * sqrt(C.mu / C.r0^3)];
 p_vec= [0., 0.075, 0, -0.021]';
 
 % set up nominal trajectory 
-x_nom = C.r0 * cos(C.n * times);
-y_nom = C.r0 * sin(C.n * times); 
+states_nom = [C.r0 * cos(C.n * times); 
+              -C.r0 * C.n * sin(C.n * times);
+              C.r0 * sin(C.n * times); 
+              C.r0 * C.n * sin(C.n * times)];
 
 % Run the linearized dynamics for the perturbations
 for k = 1:(length(times)-1)
@@ -48,31 +50,44 @@ xlabel("Time (seconds)")
 
 %% Generate Simulated Ground Station Data!
 
-msrs = [];
+% Construct perturbation measurements
+msrs_p= [];
 for t_index = 1:(length(times)) 
-    h_mat = Build_Full_H_Matrix(C, times(t_index));
-    msrs(:, t_index) = h_mat * p_vec(:, t_index);
+    h_mat_p = Build_Full_H_Matrix_Delta(C, times(t_index));
+    msrs_p(:, t_index) = h_mat_p * p_vec(:, t_index);
 end
 
-%% Plot Measurements
+% Construct nominal measurements 
+msrs_nom = [];
+for t_index = 1:(length(times))
+    h_mat_nom = Build_Full_H_Matrix_Nom(C, times(t_index));
+    msrs_nom(:, t_index) = h_mat_nom; 
+end
 
-% F
+
+%% Plot Measurements
+figure()
+
 x = 1;
 for i = 1:12
-    figure()
     subplot(3, 1, 1)
-    plot(times, msrs(x,:))
-    title(strcat('Station', num2str(i)))
+    hold on 
+    scatter(times, msrs_nom(x,:) + msrs_p(x,:))
     ylabel('Range (km)')
+    ylim([0,2200])
     subplot(3, 1, 2) 
-    plot(times, msrs(x + 1,:))
+    hold on 
+    scatter(times, msrs_nom(x + 1,:) + msrs_p(x + 1,:))
     ylabel('Range Rate (km/s)')
+    ylim([-8,12])
     subplot(3, 1, 3)
-    plot(times, msrs(x + 2,:))
+    hold on
+    scatter(times, msrs_nom(x + 2,:) + msrs_p(x + 2,:))
     ylabel('Phi (rad)')
     xlabel('Time (sec)')
-    x = x + 3;
-end 
+    ylim([-2.25,2.25])
+    x = x + 3; 
+end
 
 
                     
@@ -112,13 +127,14 @@ function [f_tilde_out] = F_tilde(C, t)
                                       3 * C.mu * sin(2 * C.n * t) / (2 * C.r0^3), 0, ...
                                       C.mu * ( 3 * (sin(C.n * t))^2 - 1) / (C.r0^3), 0];
 end
-  
-%% Observation Matrix 
- function [h_matrix] = Build_Full_H_Matrix(C, time)
+
+%% Obs Matrix Nominal 
+
+function [h_matrix] = Build_Full_H_Matrix_Nom(C, time) 
     %==========================================================================
-    % [h_matrix] = Build_Full_H_Matrix(C, time)
+    % [h_matrix] = Build_Full_H_Matrix_Nom(C, time)
     %
-    % Consructs the observation matrix for all of the stations at a given
+    % Consructs the Nominal observation matrix for all of the stations at a given
     % time
     % 
     % INPUT:               Description                                   Units
@@ -136,7 +152,53 @@ end
     %        station  
     %
     %==========================================================================
-    
+    h_matrix = [];
+    for i = 1:12
+        if Check_Valid_Pass(C, time, i)
+            h_matrix = [h_matrix; H_nom(C, time, i)];
+        else
+            h_matrix = [h_matrix; NaN(3, 1)];
+        end
+    end   
+end 
+
+
+function [h_out] = H_nom(C, t, i)
+    x_nom = C.r0 * cos(C.n * t); 
+    x_nom_dot = - C.r0 * C.n * sin(C.n * t); 
+    y_nom = C.r0 * sin(C.n * t); 
+    y_nom_dot = C.r0 * C.n * cos(C.n * t); 
+    r_nom = sqrt((x_nom- X_i(C, t, i))^2 + (y_nom - Y_i(C, t, i))^2);
+    h_out = [r_nom; ((x_nom - X_i(C, t, i)) * (x_nom_dot - dX_i(C, t, i)) + ...
+            (y_nom - Y_i(C, t, i)) * (y_nom_dot - dY_i(C, t, i))) / r_nom; 
+            atan2((y_nom - Y_i(C, t, i)),(x_nom - X_i(C, t, i)))];
+
+end
+
+
+%% Observation Matrix (Perturbation)
+ function [h_matrix] = Build_Full_H_Matrix_Delta(C, time)
+    %==========================================================================
+    % [h_matrix] = Build_Full_H_Matrix(C, time)
+    %
+    % Consructs the perturbation observation matrix for all of the stations at a 
+    % given time
+    % 
+    % INPUT:               Description                                   Units
+    %
+    %  C                   - Constants Object                            NA
+    %  time                - time at which to initialize h matrix        sec
+    %
+    % OUTPUT:       
+    %    
+    %  h_matrix      - matrix of gps satellite orbit parameters         (nx25)
+    %                                     
+    % Coupling:
+    %   
+    % H_i => Uses this to construct the observation for each individual ground 
+    %        station  
+    %
+    %==========================================================================
     h_matrix = [];
     for i = 1:12
         if Check_Valid_Pass(C, time, i)
@@ -178,7 +240,7 @@ end
     min = -pi / 2 + theta;
     max = pi / 2 + theta;
     
-    if min <= phi <= max
+    if min < phi && phi < max
         bool = true;
     else 
         bool = false;
@@ -208,14 +270,13 @@ function H_out = H_i(C, t, i)
     %  Q_nom               - evaluates a nasty math expression I
     %                        arbitrarily called Q
     %
-    %==========================================================================
-    
+    %==========================================================================    
     H_out = [(C.r0 * cos(C.n * t) - X_i(C, t, i)) / Rho_Nom(C, t, i), 0, ... 
-            (C.r0 * sin(C.n * t) - Y_i(C, t, i)) / Rho_Nom(C, t, i), 0; 
-           -(C.r0 * sin(C.n * t) - Y_i(C, t, i)) * Q_Nom(C, t, i) / Rho_Nom(C, t, i)^3, ...
+            (C.r0 * sin(C.n * t) - Y_i(C, t, i)) / Rho_Nom(C, t, i), 0;   
+            (Y_i(C, t, i) - C.r0 * sin(C.n * t)) * Q_Nom(C, t, i) / Rho_Nom(C, t, i)^3, ...  
             (C.r0 * sin(C.n * t) - X_i(C, t, i))/ Rho_Nom(C, t, i), ...
-            (C.r0 * cos(C.n * t) - X_i(C, t, i)) * Q_Nom(C, t, i) / Rho_Nom(C, t, i)^3, ...
-            (C.r0 * sin(C.n * t) - Y_i(C, t, i)) / Rho_Nom(C, t, i);
+            (C.r0 * cos(C.n * t) - X_i(C, t, i)) * Q_Nom(C, t, i) / Rho_Nom(C, t, i)^3, ...  
+            (C.r0 * sin(C.n * t) - Y_i(C, t, i)) / Rho_Nom(C, t, i);        
            -(C.r0 * sin(C.n * t) - Y_i(C, t, i)) / Rho_Nom(C, t, i)^2, 0, ...
             (C.r0 * cos(C.n * t) - X_i(C, t, i)) / Rho_Nom(C, t, i)^2, 0];
 end    
@@ -246,8 +307,7 @@ function rho = Rho_Nom(C, t, i)
     %                       time
     %
     %==========================================================================
-    rho = sqrt(C.Re^2 + C.r0^2 - 2 * C.r0 * (X_i(C,t,i) * cos(C.n *t) + ...
-               Y_i(C, t, i) * sin(C.n * t)));
+    rho = sqrt((C.r0 * cos(C.n * t) - X_i(C, t, i))^2 + (C.r0 * sin(C.n * t) - Y_i(C, t, i))^2);
 end
 
 
@@ -274,10 +334,9 @@ function q = Q_Nom(C, t, i)
     % dX_i           - Finds the x velocity of a station
     % dY_i           - Finds the y velocity of a station
     %
-    %==========================================================================
-    
-    q = (C.r0 * cos(C.n * t) - X_i(C, t, i)) * (C.n * C.r0 * cos(C.n * t) - dY_i(C, t, i)) - ...
-        (C.r0 * sin(C.n * t) - Y_i(C, t, i)) * (-C.n * C.r0 * sin(C.n * t) - dX_i(C, t, i));
+    %========================================================================== 
+    q = (X_i(C, t, i) - C.r0 * cos(C.n * t)) * (dY_i(C, t, i) - C.n * C.r0 * cos(C.n * t)) - ...
+        (Y_i(C, t, i) - C.r0 * sin(C.n * t)) * (dX_i(C, t, i) + C.n * C.r0 * sin(C.n * t));
 end
 
  
@@ -303,9 +362,8 @@ end
     %  Y_i               - Finds station y position
     %  X_i               - Finds station x position
     %
-    %==========================================================================
-    
-    phi = atan2((C.r0 * sin(C.n * t) - Y_i(C, t, i)) , (C.r0 * cos(C.n * t) - X_i(C, t, i)));
+    %========================================================================== 
+    phi = atan2((C.r0 * sin(C.n * t) - Y_i(C, t, i)), (C.r0 * cos(C.n * t) - X_i(C, t, i)));
  end
  
  
@@ -332,8 +390,7 @@ function [stn_theta] = Theta_I(C, t, i)
     %   X_i  -provides station's X position in inertial frame
     %   Y_i  -provides station's Y position in inertial frame  
     %
-    %==========================================================================
-    
+    %========================================================================== 
     stn_theta = atan2(Y_i(C, t, i) , X_i(C, t, i));
 end
  
@@ -358,8 +415,7 @@ function [x_i_out] = X_i(C, t, i)
     %
     %  None 
     %
-    %==========================================================================
-    
+    %========================================================================== 
     x_i_out = C.Re * cos(C.omega_e * t + C.station_angles_0(i));
 end
 
@@ -384,8 +440,7 @@ function [dx_i_out] = dX_i(C, t, i)
     %
     %  None 
     %
-    %==========================================================================
-    
+    %========================================================================== 
     dx_i_out = -C.Re * C.omega_e * sin(C.omega_e * t + C.station_angles_0(i));
 end
 
@@ -410,8 +465,7 @@ function [y_i_out] = Y_i(C, t, i)
     %
     %  None 
     %
-    %==========================================================================
-    
+    %==========================================================================    
     [y_i_out] = C.Re * sin(C.omega_e * t + C.station_angles_0(i));
 end
 
