@@ -60,8 +60,7 @@ end
 % Construct nominal measurements 
 msrs_nom = [];
 for t_index = 1:(length(times))
-    h_mat_nom = Build_Full_H_Matrix_Nom(C, times(t_index));
-    msrs_nom(:, t_index) = h_mat_nom; 
+    msrs_nom(:, t_index) = Build_Full_H_Matrix_Nom(C, times(t_index));
 end
 
 
@@ -74,22 +73,19 @@ for i = 1:12
     hold on 
     scatter(times, msrs_nom(x,:) + msrs_p(x,:))
     ylabel('Range (km)')
-    ylim([0,2200])
     subplot(3, 1, 2) 
     hold on 
     scatter(times, msrs_nom(x + 1,:) + msrs_p(x + 1,:))
     ylabel('Range Rate (km/s)')
-    ylim([-8,12])
     subplot(3, 1, 3)
     hold on
     scatter(times, msrs_nom(x + 2,:) + msrs_p(x + 2,:))
     ylabel('Phi (rad)')
     xlabel('Time (sec)')
-    ylim([-2.25,2.25])
     x = x + 3; 
 end
 
-
+x = 2;
                     
 %% FUNCTIONS
 % ====================================================================================
@@ -155,7 +151,7 @@ function [h_matrix] = Build_Full_H_Matrix_Nom(C, time)
     h_matrix = [];
     for i = 1:12
         if Check_Valid_Pass(C, time, i)
-            h_matrix = [h_matrix; H_nom(C, time, i)];
+            h_matrix = [h_matrix; Nom_Msrs(C, time, i)];
         else
             h_matrix = [h_matrix; NaN(3, 1)];
         end
@@ -163,17 +159,88 @@ function [h_matrix] = Build_Full_H_Matrix_Nom(C, time)
 end 
 
 
-function [h_out] = H_nom(C, t, i)
-    x_nom = C.r0 * cos(C.n * t); 
-    x_nom_dot = - C.r0 * C.n * sin(C.n * t); 
-    y_nom = C.r0 * sin(C.n * t); 
-    y_nom_dot = C.r0 * C.n * cos(C.n * t); 
-    r_nom = sqrt((x_nom- X_i(C, t, i))^2 + (y_nom - Y_i(C, t, i))^2);
-    h_out = [r_nom; ((x_nom - X_i(C, t, i)) * (x_nom_dot - dX_i(C, t, i)) + ...
-            (y_nom - Y_i(C, t, i)) * (y_nom_dot - dY_i(C, t, i))) / r_nom; 
-            atan2((y_nom - Y_i(C, t, i)),(x_nom - X_i(C, t, i)))];
+function [msrs_out] = Nom_Msrs(C, t, i)
+    %==========================================================================
+    % [msrs_out] = Nom_msrs(C, t, i)
+    %
+    %  Finds the nominal measurements at a given time for a given station
+    % 
+    % INPUT:               Description                                   Units
+    %
+    %  C                   - Constants Object                            NA
+    %  time                - time at which to initialize h matrix        sec
+    %  i                  - number of station to generate h matrix for   int [1-12] 
+    %
+    % OUTPUT:       
+    %    
+    %                  - Range from station to nominal trajectory     km
+    %                                     
+    % Coupling:
+    %
+    %  X_i                - Gives the X location of station i at a given
+    %                       time
+    %  Y_i                - Gives the Y location of station i at a given
+    %                       time
+    %
+    %==========================================================================
+    msrs_out = [Rho_Nom(C, t, i); ((X_Nom(C, t) - X_i(C, t, i)) * (X_Nom_Dot(C, t) - dX_i(C, t, i)) + ...
+                (Y_Nom(C, t) - Y_i(C, t, i)) * (Y_Nom_Dot(C, t) - dY_i(C, t, i))) / Rho_Nom(C, t, i); 
+                atan2((Y_Nom(C, t) - Y_i(C, t, i)),(X_Nom(C, t) - X_i(C, t, i)))];
 
 end
+
+
+function rho = Rho_Nom(C, t, i) 
+    %==========================================================================
+    % [rho] = Rho_Nom(C, t, i)
+    %
+    %  Finds the nominal range between the station i and satellite at a
+    %  given time 
+    % 
+    % INPUT:               Description                                   Units
+    %
+    %  C                   - Constants Object                            NA
+    %  time                - time at which to initialize h matrix        sec
+    %  i                  - number of station to generate h matrix for   int [1-12] 
+    %
+    % OUTPUT:       
+    %    
+    %  rho                - Range from station to nominal trajectory     km
+    %                                     
+    % Coupling:
+    %
+    %  X_i                - Gives the X location of station i at a given
+    %                       time
+    %  Y_i                - Gives the Y location of station i at a given
+    %                       time
+    %
+    %==========================================================================
+    rho = sqrt((X_Nom(C, t) - X_i(C, t, i))^2 + (Y_Nom(C, t) - Y_i(C, t, i))^2);
+end
+
+
+function [x_nom_out] = X_Nom(C, t)
+    % Calculates the nominal x position at a given time
+    x_nom_out = C.r0 * cos(C.n * t); 
+end
+
+
+function [x_nom_dot_out] = X_Nom_Dot(C, t)
+    % Calculates the nominal x velocity at a given time
+    x_nom_dot_out = -C.r0 * C.n * sin(C.n * t); 
+end
+
+
+function [y_nom_out] = Y_Nom(C, t) 
+    % Calculates the nominal y position at a given time
+    y_nom_out = C.r0 * sin(C.n * t);
+end 
+
+
+function [y_nom_dot_out] = Y_Nom_Dot(C, t)
+    % Calculates the nominal y velocity at a given time
+    y_nom_dot_out = C.r0 * C.n * cos(C.n * t);
+end 
 
 
 %% Observation Matrix (Perturbation)
@@ -234,13 +301,12 @@ end
     %  theta_i            - finds angle of station in inertial frame
     %
     %==========================================================================
+    u = [X_Nom(C, t) - X_i(C, t, i), Y_Nom(C,t) - Y_i(C, t, i), 0];
+    v = [X_i(C, t, i), Y_i(C, t, i), 0];
     
-    phi = Phi_I(C, t, i); 
-    theta = Theta_I(C, t, i); 
-    min = -pi / 2 + theta;
-    max = pi / 2 + theta;
+    ThetaBetween = atan2(norm(cross(u,v)),dot(u,v));
     
-    if min < phi && phi < max
+    if -pi/2 < ThetaBetween && ThetaBetween < pi/2
         bool = true;
     else 
         bool = false;
@@ -271,44 +337,15 @@ function H_out = H_i(C, t, i)
     %                        arbitrarily called Q
     %
     %==========================================================================    
-    H_out = [(C.r0 * cos(C.n * t) - X_i(C, t, i)) / Rho_Nom(C, t, i), 0, ... 
-            (C.r0 * sin(C.n * t) - Y_i(C, t, i)) / Rho_Nom(C, t, i), 0;   
-            (Y_i(C, t, i) - C.r0 * sin(C.n * t)) * Q_Nom(C, t, i) / Rho_Nom(C, t, i)^3, ...  
-            (C.r0 * sin(C.n * t) - X_i(C, t, i))/ Rho_Nom(C, t, i), ...
-            (C.r0 * cos(C.n * t) - X_i(C, t, i)) * Q_Nom(C, t, i) / Rho_Nom(C, t, i)^3, ...  
-            (C.r0 * sin(C.n * t) - Y_i(C, t, i)) / Rho_Nom(C, t, i);        
-           -(C.r0 * sin(C.n * t) - Y_i(C, t, i)) / Rho_Nom(C, t, i)^2, 0, ...
-            (C.r0 * cos(C.n * t) - X_i(C, t, i)) / Rho_Nom(C, t, i)^2, 0];
+    H_out = [(X_Nom(C, t) - X_i(C, t, i)) / Rho_Nom(C, t, i), 0, ... 
+             (Y_Nom(C, t) - Y_i(C, t, i)) / Rho_Nom(C, t, i), 0;   
+             (Y_i(C, t, i) - Y_Nom(C, t)) * Q_Nom(C, t, i) / Rho_Nom(C, t, i)^3, ...  
+             (Y_Nom(C, t) - X_i(C, t, i))/ Rho_Nom(C, t, i), ...
+             (X_Nom(C, t) - X_i(C, t, i)) * Q_Nom(C, t, i) / Rho_Nom(C, t, i)^3, ...  
+             (Y_Nom(C, t) - Y_i(C, t, i)) / Rho_Nom(C, t, i);        
+            -(Y_Nom(C, t) - Y_i(C, t, i)) / Rho_Nom(C, t, i)^2, 0, ...
+             (X_Nom(C, t) - X_i(C, t, i)) / Rho_Nom(C, t, i)^2, 0];
 end    
-
-
-function rho = Rho_Nom(C, t, i) 
-    %==========================================================================
-    % [rho] = Rho_Nom(C, t, i)
-    %
-    %  Finds the nominal range between the station i and satellite at a
-    %  given time 
-    % 
-    % INPUT:               Description                                   Units
-    %
-    %  C                   - Constants Object                            NA
-    %  time                - time at which to initialize h matrix        sec
-    %  i                  - number of station to generate h matrix for   int [1-12] 
-    %
-    % OUTPUT:       
-    %    
-    %  rho                - Range from station to nominal trajectory     km
-    %                                     
-    % Coupling:
-    %
-    %  X_i                - Gives the X location of station i at a given
-    %                       time
-    %  Y_i                - Gives the Y location of station i at a given
-    %                       time
-    %
-    %==========================================================================
-    rho = sqrt((C.r0 * cos(C.n * t) - X_i(C, t, i))^2 + (C.r0 * sin(C.n * t) - Y_i(C, t, i))^2);
-end
 
 
 function q = Q_Nom(C, t, i) 
@@ -363,7 +400,7 @@ end
     %  X_i               - Finds station x position
     %
     %========================================================================== 
-    phi = atan2((C.r0 * sin(C.n * t) - Y_i(C, t, i)), (C.r0 * cos(C.n * t) - X_i(C, t, i)));
+    phi = atan2((Y_Nom(C, t) - Y_i(C, t, i)), (X_Nom(C, t) - X_i(C, t, i)));
  end
  
  
@@ -490,8 +527,7 @@ function [dy_i_out] = dY_i(C, t, i)
     %
     %  None 
     %
-    %==========================================================================
-    
+    %==========================================================================  
     dy_i_out = C.Re * C.omega_e * cos(C.omega_e * t + C.station_angles_0(i));
 end 
 
