@@ -13,6 +13,7 @@ C.delta_t = 10; % sec
 C.Re = 6378; %km 
 C.omega_e = 2 * pi / 86400; % earth rotation rate
 C.station_angles_0 = arrayfun(@(i) (i - 1) * pi / 6, 1:12);
+%C.Q_true = 
                                                    
 %% Generate Truth States
 
@@ -87,9 +88,109 @@ end
 
 x = 2;
                     
+
+%% Truth Modeling (Dynamics) 
+load('orbitdeterm_finalproj_KFdata.mat')
+x_true = [6678, 0, 0, C.r0 * sqrt(C.mu / C.r0^3)];
+x_true = x_true + p_vec(:,1)';
+t_span = [0, 10];
+
+for k = 1:length(times)-1
+    w_k = mvnrnd([0, 0], Qtrue, 1);
+    [out_times, out_states] = ode45(@(t, x) Full_Nonlinear_Dynamics(C, t, x, w_k), t_span, x_true(k, :));
+    x_true(k + 1, :) = out_states(end, :);
+end
+
+%% Plot dynamics truth model
+figure()
+y_labels = ["X (km)", "Xdot (km/s)", "Y (km)", "Ydot (km/s)"];
+for i = 1:4
+    subplot(4,1,i)
+    plot(times, x_true(:,i))
+    ylabel(y_labels(i))
+    xlabel("Time (sec)")
+end
+
+%% Observation Truth Model 
+msrs_true = []; 
+for k = 1:length(times-1) 
+    msrs_true(:, k+1) = Get_Msrs_True(C, x_true(k,:), times(k), Rtrue);
+end
+
+%% Plot Truth Measurements
+figure()
+
+x = 1;
+for i = 1:12
+    subplot(3, 1, 1)
+    hold on 
+    scatter(times, msrs_true(x,1:length(times)))
+    ylabel('Range (km)')
+    subplot(3, 1, 2) 
+    hold on 
+    scatter(times, msrs_true(x + 1,1:length(times)))
+    ylabel('Range Rate (km/s)')
+    subplot(3, 1, 3)
+    hold on
+    scatter(times, msrs_true(x + 2, 1:length(times)))
+    ylabel('Phi (rad)')
+    xlabel('Time (sec)')
+    x = x + 3; 
+end
+
+
+
 %% FUNCTIONS
 % ====================================================================================
 
+%% Truth Obs 
+
+function [h_matrix] = Get_Msrs_True(C, sc_state, time, R) 
+    h_matrix = [];
+    for i = 1:12
+        if Check_Valid_Pass_Truth(C, sc_state, time, i)
+            h_new = True_Msrs(C, sc_state, time, i) + mvnrnd([0, 0, 0], R, 1)';
+            h_matrix = [h_matrix; h_new];
+        else
+            h_matrix = [h_matrix; NaN(3, 1)];
+        end
+    end   
+end 
+
+
+ function bool = Check_Valid_Pass_Truth(C, sc_state, t, i)
+    u = [sc_state(1) - X_i(C, t, i), sc_state(3) - Y_i(C, t, i), 0];
+    v = [X_i(C, t, i), Y_i(C, t, i), 0];
+    
+    ThetaBetween = atan2(norm(cross(u,v)),dot(u,v));
+    
+    if -pi/2 < ThetaBetween && ThetaBetween < pi/2
+        bool = true;
+    else 
+        bool = false;
+    end 
+ end
+
+
+function [msrs_out] = True_Msrs(C, sc_state, t, i)
+    msrs_out = [sqrt((sc_state(1) - X_i(C, t, i))^2 + (sc_state(3) - Y_i(C, t, i))^2); 
+                ((sc_state(1) - X_i(C, t, i)) * (sc_state(2) - dX_i(C, t, i)) + ... 
+                (sc_state(3) - Y_i(C, t, i)) * (sc_state(4) - dY_i(C, t, i))) / ... 
+                sqrt((sc_state(1) - X_i(C, t, i))^2 + (sc_state(3) - Y_i(C, t, i))^2);
+                atan2(sc_state(3) - Y_i(C, t, i), sc_state(1) - X_i(C, t, i))];
+end
+
+
+%% Full Nonlinear Dynamics 
+
+function [state_acc] = Full_Nonlinear_Dynamics(C, t, state_m, noise) 
+    % Generates accelarations based on full nonlinear EOM
+    state_acc(1) = state_m(2);
+    state_acc(2) = -C.mu * state_m(1) / sqrt(state_m(1)^2 + state_m(3)^2)^3 + noise(1);
+    state_acc(3) = state_m(4);
+    state_acc(4) = -C.mu * state_m(3) / sqrt(state_m(1)^2 + state_m(3)^2)^3 + noise(2);
+    state_acc = state_acc';
+end
 
 %% Dynamics Matrix 
 
