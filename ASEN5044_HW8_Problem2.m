@@ -138,7 +138,17 @@ for i = 1:12
     x = x + 3; 
 end
 
+%% Run Kalman Filter 
 
+for t = 1:length(msrs_true)
+    for i = 1:3:12
+        if ~isnan(msrs_true(t,i))
+            msrs_true_useful = msrs_true(t,i:i+2);
+            H = H_i(C, times(i), i);
+            [xp, P, K] = Kalman_Filter(mu_0, P_0, F, Q, msrs_true_useful, H, R)
+        
+    end
+end 
 
 %% FUNCTIONS
 % ====================================================================================
@@ -453,7 +463,7 @@ function q = Q_Nom(C, t, i)
     %==========================================================================
     % [q] = Q_nom(C, time)
     %
-    % Solves a knarly bit of math necessary to generate the H matrix
+    % Solves a gnarly bit of math necessary to generate the H matrix
     %
     % INPUT:               Description                                   Units
     %
