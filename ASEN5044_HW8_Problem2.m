@@ -90,11 +90,11 @@ x = 2;
                     
 
 %% Truth Modeling (Dynamics) 
+ 
 load('orbitdeterm_finalproj_KFdata.mat')
 x_true = [6678, 0, 0, C.r0 * sqrt(C.mu / C.r0^3)];
 x_true = x_true + p_vec(:,1)';
 t_span = [0, 10];
-
 for k = 1:length(times)-1
     w_k = mvnrnd([0, 0], Qtrue, 1);
     [out_times, out_states] = ode45(@(t, x) Full_Nonlinear_Dynamics(C, t, x, w_k), t_span, x_true(k, :));
@@ -102,6 +102,7 @@ for k = 1:length(times)-1
 end
 
 %% Plot dynamics truth model
+
 figure()
 y_labels = ["X (km)", "Xdot (km/s)", "Y (km)", "Ydot (km/s)"];
 for i = 1:4
@@ -112,12 +113,14 @@ for i = 1:4
 end
 
 %% Observation Truth Model 
+
 msrs_true = []; 
 for k = 1:length(times-1) 
     msrs_true(:, k+1) = Get_Msrs_True(C, x_true(k,:), times(k), Rtrue);
 end
 
 %% Plot Truth Measurements
+
 figure()
 
 x = 1;
@@ -138,20 +141,42 @@ for i = 1:12
     x = x + 3; 
 end
 
-%% Run Kalman Filter 
-
-for t = 1:length(msrs_true)
-    for i = 1:3:12
-        if ~isnan(msrs_true(t,i))
-            msrs_true_useful = msrs_true(t,i:i+2);
-            H = H_i(C, times(i), i);
-            [xp, P, K] = Kalman_Filter(mu_0, P_0, F, Q, msrs_true_useful, H, R)
-        
-    end
-end 
-
 %% FUNCTIONS
 % ====================================================================================
+
+%% pull out msrs
+
+
+
+
+%% Kalman Filter 
+
+function [xp, P, K] = Kalman_Filter(C, xp_0, P_0, Q, data, times, msrs_nom)  
+    % Preinitialization of cov, mean
+    xp = xp_0;
+    P = P_0;
+    K = zeros(size(xp_0,1), size(msrs_nom, 1));
+
+    for t = 1:(length(times) - 1)
+        F_t = F_tilde(C, times(t));
+        H_t = Build_Full_H_Matrix_Delta(C, times(t));
+        RESID = msrs_nom(:, t) - data(:, t); 
+        [P(:, :, t + 1), K(:, :, t + 1), xp(:, t + 1)] = Kalman_Step(F_t, H_t, xp(:, t), P(:, :, t), RESID, Q); 
+    end
+end
+
+
+function [P, K, xp] = Kalman_Step(F, H, xp, P, msr, Q)
+    % Prediction Step 
+    xm = F * xp;
+    Pm = F * P * F' + Q;
+    K = Pm * H' * inv(H * Pm * H' + R);
+    
+    % Correction Step 
+    xp = xm + K * (msr - H * xm);
+    P = (eye(4) - K * H) * Pm;   
+end
+
 
 %% Truth Obs 
 
@@ -217,7 +242,7 @@ function [f_tilde_out] = F_tilde(C, t)
     %  C                   - Constants Object                            NA
     %  time                - time at which to evaluate F_tilde           sec
     %
-    % OUTPUT:       
+    % OUTPUT:       zeros(size(xp_0,1), size(msrs_nom,1))'; 
     %    
     %  f_tilde_out      - taylor expanded dynamics matrix for S/C        (4x4)
     %                                     
