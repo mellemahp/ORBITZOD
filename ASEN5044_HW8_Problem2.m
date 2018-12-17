@@ -143,15 +143,38 @@ end
 
 %% FUNCTIONS
 % ====================================================================================
-
+P_0 = 1000 * eye(4); 
+Q = eye(4);
 %% pull out msrs
 
+%% Run Kalman Filter 
+msrs_true_useful_vec = [];
+H_block = [];
+R_block=[];
+xp = state
+P=P_0;
+for t = 1:length(msrs_true)
+    for i = 1:3:12
+        if ~isnan(msrs_true(t,i))
+            msrs_true_useful_vec = [msrs_true_useful_vec;msrs_true];
+            H_block = [H_block; H_i(C, times(i), i)];
+            R_block = blkdiag([R_block;Rtrue]); 
+        end
+    F= F_tilde(C,t);
+    [P(:,:,t+1), K, xp(t+1)] = Kalman_Step(F, H_block, xp(t), P(:,:,t), msrs_true_useful, Q)
+    end 
+end
 
+%% Kalman Filter Test 
+
+
+
+[x_p, P, K] = Kalman_Filter2(C, state, P_0, Q, msrs_true, times, msrs_nom);
 
 
 %% Kalman Filter 
 
-function [xp, P, K] = Kalman_Filter(C, xp_0, P_0, Q, data, times, msrs_nom)  
+function [xp, P, K] = Kalman_Filter2(C, xp_0, P_0, Q, data, times, msrs_nom)  
     % Preinitialization of cov, mean
     xp = xp_0;
     P = P_0;
@@ -166,7 +189,7 @@ function [xp, P, K] = Kalman_Filter(C, xp_0, P_0, Q, data, times, msrs_nom)
 end
 
 
-function [P, K, xp] = Kalman_Step(F, H, xp, P, msr, Q)
+function [P, K, xp] = Kalman_Step(F, H, xp, P, msr, Q,R)
     % Prediction Step 
     xm = F * xp;
     Pm = F * P * F' + Q;
