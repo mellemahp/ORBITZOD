@@ -141,19 +141,14 @@ for i = 1:12
     x = x + 3; 
 end
 
-%% Kalman Filter Test 
-
+%% FUNCTIONS
+% ====================================================================================
 P_0 = 1000 * eye(4); 
 Q = eye(4);
 
-[x_p, P, K] = Kalman_Filter(C, state, P_0, Q, msrs_true, times, msrs_nom);
-
-%% FUNCTIONS
-% ====================================================================================
-
 %% Kalman Filter 
 
-function [xp, P, K] = Kalman_Filter(C, xp_0, P_0, Q, data, times, msrs_nom)  
+function [xp, P, K] = Kalman_Filter2(C, xp_0, P_0, Q, data, times, msrs_nom)  
     % Preinitialization of cov, mean
     xp = xp_0;
     P = P_0;
@@ -168,7 +163,7 @@ function [xp, P, K] = Kalman_Filter(C, xp_0, P_0, Q, data, times, msrs_nom)
 end
 
 
-function [P, K, xp] = Kalman_Step(F, H, xp, P, msr, Q)
+function [P, K, xp] = Kalman_Step(F, H, xp, P, msr, Q,R)
     % Prediction Step 
     xm = F * xp;
     Pm = F * P * F' + Q;
@@ -490,7 +485,7 @@ function q = Q_Nom(C, t, i)
     %==========================================================================
     % [q] = Q_nom(C, time)
     %
-    % Solves a knarly bit of math necessary to generate the H matrix
+    % Solves a gnarly bit of math necessary to generate the H matrix
     %
     % INPUT:               Description                                   Units
     %
