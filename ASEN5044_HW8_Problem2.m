@@ -148,15 +148,8 @@ Q = eye(4);
 
 [x_p, P, K] = Kalman_Filter(C, state, P_0, Q, msrs_true, times, msrs_nom);
 
-
-
 %% FUNCTIONS
 % ====================================================================================
-
-%% pull out msrs
-
-
-
 
 %% Kalman Filter 
 
