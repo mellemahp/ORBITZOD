@@ -155,6 +155,9 @@ H_block = [];
 R_block=[];
 xp = state;
 P=P_0;
+
+
+
 for t = 1:length(msrs_true)
     msrs_true_useful_vec = [];
     H_block = []; 
@@ -168,9 +171,11 @@ for t = 1:length(msrs_true)
             R_block = blkdiag(R_block,Rtrue); 
         end
     end
+    F= F_tilde(C,t);
     if ~isempty(msrs_true_useful_vec)
-        F= F_tilde(C,t);
         [P(:,:,t+1), xp(:,t+1)] = Kalman_Step(F, H_block, xp(:,t), P(:,:,t), msrs_true_useful_vec, Q, R_block);
+    else 
+        [P(:,:,t+1), xp(:,t+1)] = Pure_Pred_Step(F, xp(:,t), P(:,:,t), Q);
     end
 end 
 
@@ -179,7 +184,7 @@ end
 
 
 
-[x_p, P, K] = Kalman_Filter2(C, state, P_0, Q, msrs_true, times, msrs_nom);
+%[x_p, P, K] = Kalman_Filter2(C, state, P_0, Q, msrs_true, times, msrs_nom);
 
 %% Kalman Filter 
 
@@ -207,6 +212,13 @@ function [P, xp] = Kalman_Step(F, H, xp, P, msr, Q,R)
     % Correction Step 
     xp = xm + K * (msr - H * xm);
     P = (eye(4) - K * H) * Pm;   
+end
+
+
+function [P, xp] = Pure_Pred_Step(F, xp, P, Q)
+    % Runs pure prediction for an update
+    xp = F * xp;
+    P = F * P * F' + Q;
 end
 
 
