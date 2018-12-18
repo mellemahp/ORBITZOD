@@ -115,8 +115,8 @@ end
 %% Observation Truth Model 
 
 msrs_true = []; 
-for k = 1:length(times-1) 
-    msrs_true(:, k+1) = Get_Msrs_True(C, x_true(k,:), times(k), Rtrue);
+for k = 1:length(times)-1 
+    msrs_true(:, k+1) = Get_Msrs_True(C, x_true(k+1,:), times(k+1), Rtrue);
 end
 
 %% Plot Truth Measurements
@@ -146,9 +146,44 @@ end
 P_0 = 1000 * eye(4); 
 Q = eye(4);
 
+%% pull out msrs
+
+%% Run Kalman Filter 
+msrs_true = msrs_true(:,2:end);
+msrs_true_useful_vec = [];
+H_block = [];
+R_block=[];
+xp = state;
+P=P_0;
+for t = 1:length(msrs_true)
+    msrs_true_useful_vec = [];
+    H_block = []; 
+    R_block = [];
+    for stn_num = 1:12
+        j = 1:3:36;
+        i = j(stn_num);
+        if ~isnan(msrs_true(i,t))
+            msrs_true_useful_vec = [msrs_true_useful_vec;msrs_true(i:i+2,t)];
+            H_block = [H_block; H_i(C, times(t), stn_num)];
+            R_block = blkdiag(R_block,Rtrue); 
+        end
+    end
+    if ~isempty(msrs_true_useful_vec)
+        F= F_tilde(C,t);
+        [P(:,:,t+1), xp(:,t+1)] = Kalman_Step(F, H_block, xp(:,t), P(:,:,t), msrs_true_useful_vec, Q, R_block);
+    end
+end 
+
+
+%% Kalman Filter Test 
+
+
+
+[x_p, P, K] = Kalman_Filter2(C, state, P_0, Q, msrs_true, times, msrs_nom);
+
 %% Kalman Filter 
 
-function [xp, P, K] = Kalman_Filter2(C, xp_0, P_0, Q, data, times, msrs_nom)  
+function [xp, P, k] = Kalman_Filter2(C, xp_0, P_0, Q, data, times, msrs_nom)  
     % Preinitialization of cov, mean
     xp = xp_0;
     P = P_0;
@@ -163,7 +198,7 @@ function [xp, P, K] = Kalman_Filter2(C, xp_0, P_0, Q, data, times, msrs_nom)
 end
 
 
-function [P, K, xp] = Kalman_Step(F, H, xp, P, msr, Q,R)
+function [P, xp] = Kalman_Step(F, H, xp, P, msr, Q,R)
     % Prediction Step 
     xm = F * xp;
     Pm = F * P * F' + Q;
