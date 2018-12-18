@@ -154,14 +154,14 @@ R_block=[];
 xp = state
 P=P_0;
 for t = 1:length(msrs_true)
-    for i = 1:3:12
+    for i = 1:3:36
         if ~isnan(msrs_true(t,i))
             msrs_true_useful_vec = [msrs_true_useful_vec;msrs_true];
             H_block = [H_block; H_i(C, times(i), i)];
             R_block = blkdiag([R_block;Rtrue]); 
         end
     F= F_tilde(C,t);
-    [P(:,:,t+1), K, xp(t+1)] = Kalman_Step(F, H_block, xp(t), P(:,:,t), msrs_true_useful, Q)
+    [P(:,:,t+1), K, xp(t+1)] = Kalman_Step(F, H_block, xp(t), P(:,:,t), msrs_true_useful_vec, Q, R_block)
     end 
 end
 
