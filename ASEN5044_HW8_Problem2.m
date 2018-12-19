@@ -42,10 +42,10 @@ end
 %% Run Kalman Filter
 
 msrs_true = msrs_true(:,2:end);
-P_0 = 10000 * eye(4); 
+P_0 = 100 * eye(4); 
 xp = p_vec;
 P= P_0;
-Q = eye(4) * 10^-8;
+Q = eye(4) * 10^-9;
 
 [P, xp] = Kalman_Filter(C, times, msrs_true, xp, P, Rtrue, Q);
 
@@ -56,30 +56,33 @@ Q = eye(4) * 10^-8;
 %hold on 
 %plot(states_nom(1, :), states_nom(3, :))
 
-%% extract data from ydata cell array 
-
-msrs_corrected = Make_Data_Useful(ydata);
-
 %% Extended Kalman Filter
+
+P_0 = diag(1e-3 * [10, 0.001, 10, 0.001]);  
+Q = (eye(4) * 1.0e-9) / 1.1; 
 istate = [C.r0, 0, 0, C.r0 * sqrt(C.mu / C.r0^3)]';
-[xp, P, e] = EKF(C, istate, P_0, times, msrs_true, Q, Rtrue)
+
+[xp, P, e] = EKF(C, istate, P_0, times, msrs_true, Q, Rtrue);
 
 
 %% Plot Extended Kalman Filter Results 
 
 figure()
-plot(states_nom(1, :) + xp(1, :), states_nom(3, :) + xp(3, :))
+plot(xp(1, :), xp(3,:))
 hold on 
 plot(states_nom(1, :), states_nom(3, :))
 
 
-%% FUNCTIONS
-% ====================================================================================
+%% extract data from ydata cell array 
 
-P_0 = 10000 * eye(4); 
+msrs_corrected = Make_Data_Useful(ydata);
+
+%% Use a linear Kalman Filter on Given Data
+
+P_0 = diag(1e-3 * [10, 0.001, 10, 0.001]);  
 xp = p_vec;
 P= P_0;
-Q = eye(4) * 10^-8;
+Q = (eye(4) * 1.0e-9) / 1.1; 
 msrs_corrected = msrs_corrected(:,2:end);
 
 [P, xp] = Kalman_Filter(C, times, msrs_corrected, xp, P, Rtrue, Q);
