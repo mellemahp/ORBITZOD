@@ -72,7 +72,7 @@ yt = zeros(2, N); % Initialize size of output vector for all k
 for k = 2:N
 F = F_tilde(C, times(k));
     opts = odeset('RelTol', 1e-9, 'AbsTol', 1e-10);
-    [~, out_states] = ode45(@(t, x) Full_Nonlinear_Dynamics(C, t, x, w_k), t_span, xp(:, k)', opts);
+    [~, out_states] = ode45(@(t, x) Full_Nonlinear_Dynamics(C, t, x, w_k), t_span, x_true(:, k)', opts);
 end
 
 %%
@@ -90,7 +90,7 @@ chi_p = [x(:,k-1) x(:,k-1)*ones(1,L)+sqrt(L+lambda)*sP, ...
 %chi_m = "chi minus" = chi(k|k-1)
 for i=2:2*L+1
 chi_m(:,i) =[chi_p(1,i)+chi_p(2,i)*T;... //x1
-             chi_p(2,i)+((chi_p(1,i)*(chi_p(4,i))^2)-((G*M)/(chi_p(1,i))^2))*T;...//x2
+             chi_p(2,i)+((chi_p(1,i)*(chi_p(4,i))^2)-((C.mu)/(chi_p(1,i))^2))*T;...//x2
              chi_p(3,i)+chi_p(4,i)*T;... //x3
              chi_p(4,i)-((2*chi_p(4,i)*chi_p(2,i))/chi_p(1,i))*T];   %//x4
 end
