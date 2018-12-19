@@ -51,26 +51,33 @@ Q = eye(4) * 10^-8;
 
 %% Plot Kalman Filter Results 
 
+%figure()
+%plot(states_nom(1, :) + xp(1, :), states_nom(3, :) + xp(3, :))
+%hold on 
+%plot(states_nom(1, :), states_nom(3, :))
+
+%% extract data from ydata cell array 
+
+msrs_corrected = Make_Data_Useful(ydata);
+
+%% FUNCTIONS
+% ====================================================================================
+
+P_0 = 10000 * eye(4); 
+xp = p_vec;
+P= P_0;
+Q = eye(4) * 10^-8;
+msrs_corrected = msrs_corrected(:,2:end);
+
+[P, xp] = Kalman_Filter(C, times, msrs_corrected, xp, P, Rtrue, Q);
+
 figure()
 plot(states_nom(1, :) + xp(1, :), states_nom(3, :) + xp(3, :))
 hold on 
 plot(states_nom(1, :), states_nom(3, :))
 
 
-%% FUNCTIONS
-% ====================================================================================
-
-
-
-
-
-
-
-
-
-
-
-
+Plot_States(times, (states_nom + xp)', "Perturbation")
 
 
 
