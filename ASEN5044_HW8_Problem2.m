@@ -62,7 +62,12 @@ P_0 = diag(1e-3 * [10, 0.001, 10, 0.001]);
 Q = (eye(4) * 1.0e-9) / 1.1; 
 istate = [C.r0, 0, 0, C.r0 * sqrt(C.mu / C.r0^3)]';
 
-[xp, P, e] = EKF(C, istate, P_0, times, msrs_true, Q, Rtrue);
+[xp, P, ey, S] = EKF(C, istate, P_0, times, msrs_true, Q, Rtrue);
+
+
+%% NEES and NIS Test
+ex = x_true' - xp
+[ex, ey, mu_ex, mu_ey] = NEESnNIS(ex, ey, P, S, msrs_true)
 
 
 %% Plot Extended Kalman Filter Results 

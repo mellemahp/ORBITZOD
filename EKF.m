@@ -1,4 +1,4 @@
-function [xp, P, ey] = EKF(C, xp, P, times, msrs, Q, Rmat)
+function [xp, P, ey, S_out] = EKF(C, xp, P, times, msrs, Q, Rmat)
 t_span = [0, 10];
 z = size(times, 2);
 ycount = 3;
@@ -41,4 +41,5 @@ for k = 1:length(msrs)
     end
 end
 
+S_out(:,:,k+1) = S;
 end
