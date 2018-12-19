@@ -57,6 +57,19 @@ hold on
 plot(states_nom(1, :), states_nom(3, :))
 
 
+%% Extended Kalman Filter
+istate = [C.r0, 0, 0, C.r0 * sqrt(C.mu / C.r0^3)]';
+[xp, P, e] = EKF(C, istate, P_0, times, msrs_true, Q, Rtrue)
+
+
+%% Plot Extended Kalman Filter Results 
+
+figure()
+plot(states_nom(1, :) + xp(1, :), states_nom(3, :) + xp(3, :))
+hold on 
+plot(states_nom(1, :), states_nom(3, :))
+
+
 %% FUNCTIONS
 % ====================================================================================
 
