@@ -61,21 +61,18 @@ Q = Qtrue / 1.1;
 Q_Om = Omega * Q * Omega'; 
 R = diag([10000 0.0100]);
 
+N=length(x_true)
+T=times
 % Step 3: Initialize state and covariance
 x = zeros(4,N); % Initialize size of state estimate for all k
-x(:,1) = istate ; % Set initial state estimate
+xt(:,1) = istate ; % Set initial state estimate
 P0 =diag(1e-3 * [10, 0.001, 10, 0.001]); % Set initial error covariance
 
 yt = zeros(2, N); % Initialize size of output vector for all k
 for k = 2:N
-xt(:,k) = [xt(1,k-1)+(xt(2,k-1))*T ;%... //x1
-           xt(2,k-1)+((xt(1,k-1)*(xt(4,k-1))^2)-((G*M)/(xt(1,k-1)^2)))*T ;%... //x2
-           xt(3,k-1)+xt(4,k-1)*T ;%... //x3
-           xt(4,k-1)-((2*xt(4,k-1)*xt(2,k-1))/xt(1,k-1))*T ;];%...    //x4
-           
-yt(:,k) = [msrs_true(k,1);...
-           msrs_true(k,2);];
-          
+F = F_tilde(C, times(k));
+    opts = odeset('RelTol', 1e-9, 'AbsTol', 1e-10);
+    [~, out_states] = ode45(@(t, x) Full_Nonlinear_Dynamics(C, t, x, w_k), t_span, xp(:, k)', opts);
 end
 
 %%
